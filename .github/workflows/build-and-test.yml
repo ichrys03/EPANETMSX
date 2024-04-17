@@ -1,3 +1,5 @@
+# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
+# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: Build and Test MSX
 on:
   push:
@@ -8,26 +10,32 @@ on:
 jobs:
   build:
     name: Build, Unit Testing, and Regression Testing
-    runs-on: ${{ matrix.os }}
+    environment: testing
+    env:
+      BuildVersion: 2.0.0
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-20.04, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, ubuntu-20.04, macos-latest]
         include:
           - os: windows-latest
-            cmake_generator: -G "Visual Studio 17 2022" -A x64
+            cmake_generator: -G "Visual Studio 17 2022" -A "x64"
+            continue-on-error: false
             alias: win64
-          - os: ubuntu-20.04
-            cmake_generator: -G "Unix Makefiles"
-            alias: Focal
           - os: ubuntu-latest
             cmake_generator: -G "Unix Makefiles"
-            alias: Latest
+            continue-on-error: false
+            alias: Linux
+          - os: ubuntu-20.04
+            cmake_generator: -G "Unix Makefiles"
+            continue-on-error: false
+            alias: Linux20.04
           - os: macos-latest
             cmake_generator: -G "Xcode"
+            continue-on-error: false
             alias: Darwin
-    env:
-      BuildVersion: 2.0.0
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.continue-on-error }}
 
     steps:
     - name: Checkout Repository
@@ -35,42 +43,31 @@ jobs:
       with:
         submodules: true
 
-    - name: Setup Build Environment
+    - name: Build OpenMP Binaries for MacOS via Homebrew
+      if: ${{ matrix.os == 'macos-latest' }}
       run: |
-        if [ "${{ matrix.os }}" == "windows-latest" ]; then
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-        elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-          brew install cmake libomp
-        else
-          sudo apt update
-          sudo apt install -y cmake libomp-dev
-        fi
+        brew reinstall --build-from-source --formula ./shell/apple/libomp.rb
 
-    - name: Configure CMake
+    - name: Build
       run: |
-        cmake -B build -S . -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake_generator }}
+        cmake -B build ${{ matrix.cmake_generator }} .
+        cmake --build build --config Release --target package
 
-    - name: Build Project
+    - name: Run Example on Windows
+      if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        cmake --build build --config Release
-
-    - name: List Output Directories
+        ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+    
+    - name: Run Example on Linux and MacOS
+      if: ${{ matrix.os != 'windows-latest' }}
       run: |
-        ls -R ./build/_CPack_Packages/
-
-    - name: Make Executable
-      if: matrix.os != 'windows-latest'
-      run: |
-        chmod +x ./build/_CPack_Packages/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
-
-    - name: Run Example
-      run: |
-        if [ "${{ matrix.os }}" == "windows-latest" ]; then
-          ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
-        else
-          ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+        chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanet
+        chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
+        ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+      
 
     - name: Upload artifacts
+      if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
         name: build-test-artifacts-${{ matrix.alias }}
