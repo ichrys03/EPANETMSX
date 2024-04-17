@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     name: Build, Unit Testing, and Regression Testing
-    environment: testing
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -16,11 +15,14 @@ jobs:
         os: [windows-latest, ubuntu-20.04, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
-            cmake_generator: -G "Visual Studio 17 2022" -A "x64"
+            cmake_generator: -G "Visual Studio 17 2022" -A x64
             alias: win64
+          - os: ubuntu-20.04
+            cmake_generator: -G "Unix Makefiles"
+            alias: Focal
           - os: ubuntu-latest
             cmake_generator: -G "Unix Makefiles"
-            alias: Linux
+            alias: Latest
           - os: macos-latest
             cmake_generator: -G "Xcode"
             alias: Darwin
@@ -33,33 +35,42 @@ jobs:
       with:
         submodules: true
 
-    - name: Build OpenMP Binaries for MacOS via Homebrew
-      if: matrix.os == 'macos-latest'
+    - name: Setup Build Environment
       run: |
-        brew reinstall --build-from-source --formula ./shell/apple/libomp.rb
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+        elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+          brew install cmake libomp
+        else
+          sudo apt update
+          sudo apt install -y cmake libomp-dev
+        fi
 
-    - name: Build
+    - name: Configure CMake
       run: |
-        cmake -B build ${{ matrix.cmake_generator }} .
-        cmake --build build --config Release --target package
+        cmake -B build -S . -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake_generator }}
+
+    - name: Build Project
+      run: |
+        cmake --build build --config Release
+
+    - name: List Output Directories
+      run: |
+        ls -R ./build/_CPack_Packages/
 
     - name: Make Executable
       if: matrix.os != 'windows-latest'
       run: |
         chmod +x ./build/_CPack_Packages/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
 
-    - name: Run Example on Windows
-      if: matrix.os == 'windows-latest'
+    - name: Run Example
       run: |
-        ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
-
-    - name: Run Example on Linux and MacOS
-      if: matrix.os != 'windows-latest'
-      run: |
-        ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+        else
+          ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
 
     - name: Upload artifacts
-      if: always()
       uses: actions/upload-artifact@v3
       with:
         name: build-test-artifacts-${{ matrix.alias }}
