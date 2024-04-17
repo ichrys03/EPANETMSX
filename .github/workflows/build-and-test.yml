@@ -76,7 +76,6 @@ jobs:
       if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
-        name: build-test-artifacts
+        name: build-test-artifacts-${{ matrix.alias }}
         path: |
-          build/*.zip
-          build/*.tar.gz
+          build/_CPack_Packages/${{ matrix.alias }}/ZIP/*.zip
