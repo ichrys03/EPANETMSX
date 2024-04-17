@@ -22,33 +22,21 @@ jobs:
             alias: win64
           - os: ubuntu-latest
             cmake_generator: -G "Unix Makefiles"
-            compiler: GCC
             continue-on-error: false
             alias: Linux
           - os: macos-latest
             cmake_generator: -G "Xcode"
-            compiler: GCC
             continue-on-error: false
             alias: Darwin
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.continue-on-error }}
+
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
       with:
         submodules: true
-
-    - name: Install GCC on Ubuntu
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install gcc g++ -y
-
-    - name: Install GCC on MacOS
-      if: matrix.os == 'macos-latest'
-      run: |
-        brew install gcc
 
     - name: Build OpenMP Binaries for MacOS via Homebrew
       if: matrix.os == 'macos-latest'
@@ -64,13 +52,14 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: |
         ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
-
+    
     - name: Run Example on Linux and MacOS
       if: matrix.os != 'windows-latest'
       run: |
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanet
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
         ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+      
 
     - name: Upload artifacts
       if: always()
