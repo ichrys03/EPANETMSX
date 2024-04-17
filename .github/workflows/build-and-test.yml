@@ -9,13 +9,11 @@ jobs:
   build:
     name: Build, Unit Testing, and Regression Testing
     environment: testing
-    env:
-      BuildVersion: 2.0.0
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-20.04, ubuntu-latest, macos-latest]
-        continue-on-error: [false, false, false, false] # Ensuring every OS has a continue-on-error value
         include:
           - os: windows-latest
             cmake_generator: -G "Visual Studio 17 2022" -A "x64"
@@ -26,8 +24,8 @@ jobs:
           - os: macos-latest
             cmake_generator: -G "Xcode"
             alias: Darwin
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.continue-on-error }}
+    env:
+      BuildVersion: 2.0.0
 
     steps:
     - name: Checkout Repository
@@ -45,6 +43,11 @@ jobs:
         cmake -B build ${{ matrix.cmake_generator }} .
         cmake --build build --config Release --target package
 
+    - name: Make Executable
+      if: matrix.os != 'windows-latest'
+      run: |
+        chmod +x ./build/_CPack_Packages/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
+
     - name: Run Example on Windows
       if: matrix.os == 'windows-latest'
       run: |
@@ -53,8 +56,6 @@ jobs:
     - name: Run Example on Linux and MacOS
       if: matrix.os != 'windows-latest'
       run: |
-        chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanet
-        chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
         ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
 
     - name: Upload artifacts
