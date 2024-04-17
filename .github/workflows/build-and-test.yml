@@ -24,21 +24,34 @@ jobs:
             alias: win64
           - os: ubuntu-latest
             cmake_generator: -G "Unix Makefiles"
+            compiler: GCC
             continue-on-error: false
             alias: Linux
           - os: macos-latest
             cmake_generator: -G "Xcode"
+            compiler: GCC
             continue-on-error: false
             alias: Darwin
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.continue-on-error }}
-
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
       with:
         submodules: true
+
+    - name: Setup GCC
+      if: matrix.compiler == 'GCC'
+      run: |
+        sudo apt-get install gcc g++ -y # for Ubuntu
+        brew install gcc # for MacOS
+
+    - name: Set Environment Variables for GCC
+      if: matrix.compiler == 'GCC'
+      run: |
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
 
     - name: Build OpenMP Binaries for MacOS via Homebrew
       if: ${{ matrix.os == 'macos-latest' }}
@@ -60,7 +73,7 @@ jobs:
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
         ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
-    
+
     - name: Run Example on Linux and MacOS
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only 
       # required if you are using a single-configuration generator such as make.
@@ -70,7 +83,6 @@ jobs:
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanet
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
         ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
-      
 
     - name: Upload artifacts
       if: ${{ always() }}
