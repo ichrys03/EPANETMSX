@@ -1,6 +1,5 @@
-# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: Build and Test MSX
+
 on:
   push:
     branches: [ master ]
@@ -9,24 +8,24 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }} - Build and testing
+    name: Build, Unit Testing, and Regression Testing
     environment: testing
     env:
       BuildVersion: 2.0.0
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-20.04, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-10.14]  # Change macos-latest to macos-10.14 for macOS 10.14 (Mojave)
         include:
           - os: windows-latest
             cmake_generator: -G "Visual Studio 17 2022" -A "x64"
             continue-on-error: false
             alias: win64
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             cmake_generator: -G "Unix Makefiles"
             continue-on-error: false
             alias: Linux
-          - os: macos-10.5
+          - os: macos-10.14
             cmake_generator: -G "Xcode"
             continue-on-error: false
             alias: Darwin
@@ -40,7 +39,7 @@ jobs:
         submodules: true
 
     - name: Build OpenMP Binaries for MacOS via Homebrew
-      if: ${{ matrix.os == 'macos-latest' }}
+      if: ${{ matrix.os == 'macos-10.14' }}
       run: |
         brew reinstall --build-from-source --formula ./shell/apple/libomp.rb
 
@@ -61,11 +60,11 @@ jobs:
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
         ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
       
-
     - name: Upload artifacts
       if: ${{ always() }}
       uses: actions/upload-artifact@v3
       with:
-        name: build-test-artifacts-${{ matrix.alias }}
+        name: build-test-artifacts
         path: |
-          build/_CPack_Packages/${{ matrix.alias }}/ZIP/*.zip
+          build/*.zip
+          build/*.tar.gz
