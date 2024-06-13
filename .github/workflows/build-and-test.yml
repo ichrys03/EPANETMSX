@@ -25,7 +25,7 @@ jobs:
             cmake_generator: -G "Unix Makefiles"
             continue-on-error: false
             alias: Linux
-          - os: macos-12.1
+          - os: macos-latest
             cmake_generator: -G "Xcode"
             continue-on-error: false
             alias: Darwin
