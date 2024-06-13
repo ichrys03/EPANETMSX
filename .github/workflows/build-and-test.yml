@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]  # Use macos-latest for the latest stable macOS version
+        os: [windows-latest, ubuntu-latest, macos-13]  # Example: targeting macOS 13 (Ventura)
         include:
           - os: windows-latest
             cmake_generator: -G "Visual Studio 17 2022" -A "x64"
@@ -25,7 +25,7 @@ jobs:
             cmake_generator: -G "Unix Makefiles"
             continue-on-error: false
             alias: Linux
-          - os: macos-latest
+          - os: macos-13
             cmake_generator: -G "Xcode"
             continue-on-error: false
             alias: Darwin
@@ -39,7 +39,7 @@ jobs:
         submodules: true
 
     - name: Build OpenMP Binaries for MacOS via Homebrew
-      if: ${{ matrix.os == 'macos-latest' }}
+      if: ${{ matrix.os == 'macos-13' }}
       run: |
         brew reinstall --build-from-source --formula ./shell/apple/libomp.rb
 
@@ -58,4 +58,13 @@ jobs:
       run: |
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanet
         chmod +x ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx
-        ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example
+        ./build/_CPack_Packages/${{ matrix.alias }}/ZIP/EPANETMSX-${{ env.BuildVersion }}-${{ matrix.alias }}/bin/runepanetmsx ./Examples/example.inp ./Examples/example.msx ./Examples/example.rpt ./Examples/example.out
+      
+    - name: Upload artifacts
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-test-artifacts
+        path: |
+          build/*.zip
+          build/*.tar.gz
