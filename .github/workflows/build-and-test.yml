@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-13]  # Example: targeting macOS 13 (Ventura)
+        os: [windows-latest, ubuntu-latest, macos-14]  # Updated to macOS 14 (Sonoma)
         include:
           - os: windows-latest
             cmake_generator: -G "Visual Studio 17 2022" -A "x64"
@@ -25,7 +25,7 @@ jobs:
             cmake_generator: -G "Unix Makefiles"
             continue-on-error: false
             alias: Linux
-          - os: macos-13
+          - os: macos-14
             cmake_generator: -G "Xcode"
             continue-on-error: false
             alias: Darwin
@@ -39,7 +39,7 @@ jobs:
         submodules: true
 
     - name: Build OpenMP Binaries for MacOS via Homebrew
-      if: ${{ matrix.os == 'macos-13' }}
+      if: ${{ matrix.os == 'macos-14' }}
       run: |
         brew upgrade
         brew reinstall --build-from-source --formula ./shell/apple/libomp.rb
